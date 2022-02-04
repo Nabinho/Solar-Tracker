@@ -1,52 +1,54 @@
-//Reference - https://docs.m5stack.com/#/en/unit/cardkb
-//Nabinho's AStar Micro (Slave) code for Teensy 3.2 (Master)
-//Solar Tracker Project
+// Reference - https://docs.m5stack.com/#/en/unit/cardkb
+// Nabinho's AStar Micro (Slave) code for Teensy 3.2 (Master)
+// Solar Tracker Project
 
-//Libraries
+// Libraries
 #include <LiquidCrystal_I2C.h>
 #include <ServoEasing.hpp>
 #include <Arduino.h>
 #include <EEPROM.h>
-#include <CardKB.h>
+#include <Wire.h>
 
-//IHM Communication Variables
-//LCD variables
+// IHM Communication Variables
+// LCD variables
 #define LCD_ADDR 0x3F
 #define N_COLUMNS 16
 #define N_ROWS 2
 LiquidCrystal_I2C lcd(LCD_ADDR, N_COLUMNS, N_ROWS);
-//Keyboard variables
-CardKB teclado;
+// Keyboard variables
+#define CARDKB_ADDR 0x5F
+char leitura;
 String letter;
 String message;
+String leituraHEX;
 int index;
 bool log_read = false;
 
-//Times Variables
+// Times Variables
 unsigned long time_before = 0;
 const int SECOND = 2000;
 
-//Servos Objects
+// Servos Objects
 Servo servo_pan;
 Servo servo_tilt;
 
-//Servo Control Variables
+// Servo Control Variables
 int memory_pan = 0;
 int memory_tilt = 1;
 int pos_pan;
 int pos_tilt;
 
-//Pan servo variables
+// Pan servo variables
 const int pin_pan = 4;
 const int pan_max = 180;
 const int pan_min = 0;
 
-//Tilt servo variables
+// Tilt servo variables
 const int pin_tilt = 5;
 const int tilt_max = 180;
 const int tilt_min = 90;
 
-//Joystick middle button variables
+// Joystick middle button variables
 const int pin_middle = 7;
 int readingM;
 int buttonMState;
@@ -55,7 +57,7 @@ unsigned long lastMDebounceTime = 0;
 const int MdebounceDelay = 500;
 bool manual_control = false;
 
-//Joystick left-right variables
+// Joystick left-right variables
 const int pin_left = A0;
 const int pin_right = 8;
 int readingL;
@@ -67,7 +69,7 @@ int lastButtonRState = HIGH;
 unsigned long lastLRDebounceTime = 0;
 const int LRdebounceDelay = 100;
 
-//Joystick up-down variables
+// Joystick up-down variables
 const int pin_up = 6;
 const int pin_down = 9;
 int readingU;
@@ -85,9 +87,18 @@ void IHM_control()
 
   if (!manual_control)
   {
-    //Read M5Stack CardKB module
-    char leitura = teclado.read();
-    String leituraHEX = String(leitura, HEX);
+    Wire.requestFrom(CARDKB_ADDR, 1);
+    while (Wire.available())
+    {
+      leitura = Wire.read();
+      if (leitura != 0)
+      {
+        Serial.print("leitura cardKB = ");
+        Serial.println(leitura);
+        leituraHEX = String(leitura, HEX);
+      }
+    }
+    // Read M5Stack CardKB module
 
     if (leitura != 0)
     {
@@ -100,24 +111,24 @@ void IHM_control()
         index = message.length();
         lcd.clear();
         lcd.print("Message:  " + message);
-        //Serial.print("message - ");
-        //Serial.println(message);
+        Serial.print("message - ");
+        Serial.println(message);
       }
       else if (leituraHEX == "ff8b")
       {
         message = "";
-        //Serial.print("message erased.");
-        //Serial.println(message);
+        Serial.print("message erased.");
+        Serial.println(message);
       }
       else if (leituraHEX == "d" || leituraHEX == "a3")
       {
-        //Serial.println("Enter");
+        Serial.println("Enter");
         log_read = true;
         digitalWrite(LED_BUILTIN, HIGH);
       }
       else if (leituraHEX == "1b" || leituraHEX == "ff80")
       {
-        //Serial.println("Esc");
+        Serial.println("Esc");
         digitalWrite(LED_BUILTIN, LOW);
         Serial1.print("IHMREADOFF");
         log_read = false;
@@ -125,8 +136,8 @@ void IHM_control()
       }
       else if (index > 6)
       {
-        //Serial.print("message too long - ");
-        //Serial.println(message);
+        Serial.print("message too long - ");
+        Serial.println(message);
         message.remove(index - 1);
         lcd.clear();
         lcd.print("Message:  " + message);
@@ -135,8 +146,8 @@ void IHM_control()
       }
       else
       {
-        //Serial.print("char - ");
-        //Serial.print(leitura);
+        Serial.print("char - ");
+        Serial.print(leitura);
         letter = String(leitura);
         message += letter;
         index = message.length();
@@ -153,17 +164,17 @@ void IHM_control()
 void servo_control()
 {
 
-  //Reads button states
+  // Reads button states
   readingM = digitalRead(pin_middle);
 
-  //Debounces time update
+  // Debounces time update
   if (readingM != lastButtonMState)
   {
     // reset the debouncing timer
     lastMDebounceTime = millis();
   }
 
-  //Debounce verification
+  // Debounce verification
   if ((millis() - lastMDebounceTime) > MdebounceDelay)
   {
     if (readingM != buttonMState)
@@ -171,12 +182,12 @@ void servo_control()
       buttonMState = readingM;
       if (buttonMState == LOW)
       {
-        //Inverts manual control funtion state
+        // Inverts manual control funtion state
         manual_control = !manual_control;
         if (manual_control)
         {
-          //Attaches Servos
-          //Serial.println("ENTERING MANUAL MODE");   
+          // Attaches Servos
+          // Serial.println("ENTERING MANUAL MODE");
           lcd.clear();
           lcd.print(" ENTERED SERVOS ");
           lcd.setCursor(0, 1);
@@ -184,8 +195,8 @@ void servo_control()
         }
         else
         {
-          //Detaches Servos
-          //Serial.println("EXITING MANUAL MODE");
+          // Detaches Servos
+          // Serial.println("EXITING MANUAL MODE");
           lcd.clear();
           lcd.print(" EXITED SERVOS ");
           lcd.setCursor(0, 1);
@@ -195,25 +206,25 @@ void servo_control()
     }
   }
 
-  //Updates button reading
+  // Updates button reading
   lastButtonMState = readingM;
 
-  //Checks manual control function selection
+  // Checks manual control function selection
   if (manual_control)
   {
 
-    //updates left-right buttons reading
+    // updates left-right buttons reading
     readingL = digitalRead(pin_left);
     readingR = digitalRead(pin_right);
 
-    //Debounce time update
+    // Debounce time update
     if (readingL != lastButtonLState || readingR != lastButtonRState)
     {
       // reset the debouncing timer
       lastLRDebounceTime = millis();
     }
 
-    //Debounce verification
+    // Debounce verification
     if ((millis() - lastLRDebounceTime) > LRdebounceDelay)
     {
       if (readingL != buttonLState || readingR != buttonRState)
@@ -248,23 +259,23 @@ void servo_control()
       }
     }
 
-    //Updates left-right buttons reading
+    // Updates left-right buttons reading
     lastButtonRState = readingR;
     lastButtonLState = readingL;
     servo_pan.detach();
 
-    //updates up-down buttons reading
+    // updates up-down buttons reading
     readingU = digitalRead(pin_up);
     readingD = digitalRead(pin_down);
 
-    //Debounce time update
+    // Debounce time update
     if (readingU != lastButtonUState || readingD != lastButtonDState)
     {
       // reset the debouncing timer
       lastUDDebounceTime = millis();
     }
 
-    //Debounce verification
+    // Debounce verification
     if ((millis() - lastUDDebounceTime) > UDdebounceDelay)
     {
       if (readingU != buttonUState || readingD != buttonDState)
@@ -299,11 +310,10 @@ void servo_control()
       }
     }
 
-    //Updates up-down buttons reading
+    // Updates up-down buttons reading
     lastButtonUState = readingU;
     lastButtonDState = readingD;
     servo_tilt.detach();
-
   }
 }
 
@@ -311,41 +321,41 @@ void servo_control()
 void setup()
 {
 
-  //System startup
+  // System startup
   Serial.begin(9600);
   Serial1.begin(9600);
 
-  //LED configuration
+  // LED configuration
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
 
-  //EEPROM stratup
+  // EEPROM stratup
   pos_pan = EEPROM.read(memory_pan);
   pos_tilt = EEPROM.read(memory_tilt);
   delay(100);
 
-  //Pan servo con[]
+  // Pan servo con[]
   servo_pan.attach(pin_pan);
   servo_pan.write(pos_pan);
   delay(50);
   servo_pan.detach();
 
-  //Tilt servo configuration
+  // Tilt servo configuration
   servo_tilt.attach(pin_tilt);
   servo_tilt.write(pos_tilt);
   delay(50);
   servo_tilt.detach();
 
-  //Joystick pins configuration
+  // Joystick pins configuration
   pinMode(pin_left, INPUT_PULLUP);
   pinMode(pin_right, INPUT_PULLUP);
   pinMode(pin_up, INPUT_PULLUP);
   pinMode(pin_down, INPUT_PULLUP);
   pinMode(pin_middle, INPUT_PULLUP);
 
-  //IHM configuration
-  teclado.begin();
+  // IHM configuration
   lcd.init();
+  Wire.begin();
   Serial.println("Sistema inicializado!");
   lcd.backlight();
   lcd.print(" SYSTEM    OK! ");
@@ -357,20 +367,20 @@ void setup()
 void loop()
 {
 
-  //Handles Manual Servo Control Configuration
+  // Handles Manual Servo Control Configuration
   servo_control();
 
-  //Handles IHM Control Function
+  // Handles IHM Control Function
   IHM_control();
 
-  //Every second
+  // Every second
   if ((millis() - time_before) > SECOND)
   {
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
     if (log_read && !manual_control)
     {
-      //Sends message to Master
-      //Serial.println("Mensagem '" + message + "' enviada, aguardando retorno...");
+      // Sends message to Master
+      // Serial.println("Mensagem '" + message + "' enviada, aguardando retorno...");
       lcd.setCursor(0, 0);
       lcd.print("Message:  " + message);
       if (message == "SPPAN")
@@ -395,13 +405,13 @@ void loop()
     time_before = millis();
   }
 
-  //Reads replies from Master
+  // Reads replies from Master
   if (Serial1.available() > 0)
   {
     String leitura = Serial1.readString();
-    //Serial.println(leitura);
+    // Serial.println(leitura);
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-    //Handles Servos Control Messages
+    // Handles Servos Control Messages
     if (!log_read && !manual_control)
     {
       servo_tilt.attach(pin_tilt);
@@ -448,14 +458,14 @@ void loop()
       }
     }
 
-    //Hendles IHM Messages
+    // Hendles IHM Messages
     if (log_read && !manual_control)
     {
       servo_tilt.detach();
       servo_pan.detach();
       if (leitura == "ERROR")
       {
-        //Serial.println("Mensagem inválida!");
+        // Serial.println("Mensagem inválida!");
         lcd.setCursor(0, 1);
         lcd.print("Invalid message!");
         log_read = false;

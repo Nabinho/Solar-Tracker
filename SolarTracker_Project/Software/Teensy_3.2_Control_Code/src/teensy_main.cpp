@@ -27,9 +27,9 @@ String reading;
 //DIP Pins
 const int LOG_DIP = 3;
 const int IHM_DIP = 4;
-const int MMA_DIP = 5;
-const int INA_DIP = 6;
-int DIP[4] = {3, 4, 5, 6};
+const int INA_DIP = 5;
+const int SUN_DIP = 6;
+int DIP[4] = {LOG_DIP, IHM_DIP, INA_DIP, SUN_DIP};
 int DIPArraySize = sizeof(DIP)/sizeof(DIP[0]);
 
 //DIP Booleans
@@ -42,8 +42,8 @@ bool ihm_read = false;
 
 //Light Sensors Global Variables
 //Update with new pins and new resistors values
-int TEMT_sensors[4] = {A2, A3, A6, A7};
-float TEMT_resistors[4] = {10040.00, 10050.00, 10090.00, 9980.00};
+int TEMT_sensors[4] = {A0, A1, A2, A3};
+float TEMT_resistors[4] = {9940.00, 9990.00, 1000.00, 9920.00};
 float lux_TEMT[4];
 int TEMTArraysSize = sizeof(TEMT_sensors)/sizeof(TEMT_sensors[0]);
 float BOTTOMAVERAGE;
@@ -53,18 +53,18 @@ float TOPAVERAGE;
 const float ACCEPTABLE_DIFFERENCE = 50.0;
 
 //UV Light Sensor Variables
-const int UV_sensor = A14;
+const int UV_sensor = A6;
 int UV_index;
 
 //LM35 Variables
-const int LM35 = A17;
+const int LM35 = A14;
 float temperature;
 
 //Solar panel voltage reading variables
 const int Solar_pin = A7;
 //Update with real values
-const float R1 = 15000.00;
-const float R2 = 12000.00;
+const float R1 = 14860.00;
+const float R2 = 11880.00;
 float solar_panel_voltage;
 float effiency;
 
@@ -161,7 +161,7 @@ void read_sensors(){
   if(SUN_read){
     analogRead(Solar_pin);
     solar_panel_voltage =  (analogRead(Solar_pin) * (3.3/1024.00) * ((R1 + R2)/R2)) + diode_voltage;
-    effiency = (7.4 / solar_panel_voltage) * 100.00;
+    effiency = (solar_panel_voltage / 7.4) * 100.00;
     if(OpenLog){
       Serial1.print("Solar Panel Voltage: ");
       Serial1.print(solar_panel_voltage);
